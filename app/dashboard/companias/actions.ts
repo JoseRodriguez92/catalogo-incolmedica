@@ -3,12 +3,15 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
 
-type InstitucionUpdate = Database["public"]["Tables"]["instituciones"]["Update"];
+type InstitucionUpdate =
+  Database["public"]["Tables"]["instituciones"]["Update"];
 type TipoLogo = Database["public"]["Enums"]["tipo_logo"];
 type Logo = Database["public"]["Tables"]["instituciones_logos"]["Row"];
 type Horario = Database["public"]["Tables"]["horarios_atencion"]["Row"];
-type HorarioInsert = Database["public"]["Tables"]["horarios_atencion"]["Insert"];
-type HorarioUpdate = Database["public"]["Tables"]["horarios_atencion"]["Update"];
+type HorarioInsert =
+  Database["public"]["Tables"]["horarios_atencion"]["Insert"];
+type HorarioUpdate =
+  Database["public"]["Tables"]["horarios_atencion"]["Update"];
 
 function getAdminClient() {
   return createClient<Database>(
@@ -31,7 +34,9 @@ export async function updateInstitucion(id: string, data: InstitucionUpdate) {
   return { data: updated };
 }
 
-export async function getLogos(institucionId: string): Promise<{ data?: Logo[]; error?: string }> {
+export async function getLogos(
+  institucionId: string,
+): Promise<{ data?: Logo[]; error?: string }> {
   const supabase = getAdminClient();
 
   const { data, error } = await supabase
@@ -50,6 +55,7 @@ export async function uploadLogo(
   fileName: string,
   mimeType: string,
   tipo: TipoLogo,
+  categoria: "principal" | "secundario" | "normal",
   nombre: string | null,
 ): Promise<{ data?: Logo; error?: string }> {
   const supabase = getAdminClient();
@@ -69,7 +75,13 @@ export async function uploadLogo(
 
   const { data: logo, error: dbError } = await supabase
     .from("instituciones_logos")
-    .insert({ institucion_id: institucionId, url: publicUrl, tipo, nombre: nombre || null })
+    .insert({
+      institucion_id: institucionId,
+      url: publicUrl,
+      tipo,
+      categoria,
+      nombre: nombre || null,
+    })
     .select()
     .single();
 
@@ -81,7 +93,10 @@ export async function uploadLogo(
   return { data: logo };
 }
 
-export async function deleteLogo(logoId: string, url: string): Promise<{ error?: string }> {
+export async function deleteLogo(
+  logoId: string,
+  url: string,
+): Promise<{ error?: string }> {
   const supabase = getAdminClient();
 
   const marker = "instituciones-logos/";
@@ -91,14 +106,38 @@ export async function deleteLogo(logoId: string, url: string): Promise<{ error?:
     await supabase.storage.from("instituciones-logos").remove([storagePath]);
   }
 
-  const { error } = await supabase.from("instituciones_logos").delete().eq("id", logoId);
+  const { error } = await supabase
+    .from("instituciones_logos")
+    .delete()
+    .eq("id", logoId);
   if (error) return { error: error.message };
   return {};
 }
 
+export async function updateLogo(
+  logoId: string,
+  tipo: TipoLogo,
+  categoria: "principal" | "secundario" | "normal",
+  nombre: string | null,
+): Promise<{ data?: Logo; error?: string }> {
+  const supabase = getAdminClient();
+
+  const { data: logo, error } = await supabase
+    .from("instituciones_logos")
+    .update({ tipo, categoria, nombre: nombre || null })
+    .eq("id", logoId)
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data: logo };
+}
+
 // ── Horarios ──────────────────────────────────────────────────────────────────
 
-export async function getHorarios(institucionId: string): Promise<{ data?: Horario[]; error?: string }> {
+export async function getHorarios(
+  institucionId: string,
+): Promise<{ data?: Horario[]; error?: string }> {
   const supabase = getAdminClient();
   const { data, error } = await supabase
     .from("horarios_atencion")
@@ -110,7 +149,9 @@ export async function getHorarios(institucionId: string): Promise<{ data?: Horar
   return { data: data ?? [] };
 }
 
-export async function createHorario(data: HorarioInsert): Promise<{ data?: Horario; error?: string }> {
+export async function createHorario(
+  data: HorarioInsert,
+): Promise<{ data?: Horario; error?: string }> {
   const supabase = getAdminClient();
   const { data: created, error } = await supabase
     .from("horarios_atencion")
@@ -121,7 +162,10 @@ export async function createHorario(data: HorarioInsert): Promise<{ data?: Horar
   return { data: created };
 }
 
-export async function updateHorario(id: string, data: HorarioUpdate): Promise<{ data?: Horario; error?: string }> {
+export async function updateHorario(
+  id: string,
+  data: HorarioUpdate,
+): Promise<{ data?: Horario; error?: string }> {
   const supabase = getAdminClient();
   const { data: updated, error } = await supabase
     .from("horarios_atencion")
@@ -135,7 +179,10 @@ export async function updateHorario(id: string, data: HorarioUpdate): Promise<{ 
 
 export async function deleteHorario(id: string): Promise<{ error?: string }> {
   const supabase = getAdminClient();
-  const { error } = await supabase.from("horarios_atencion").delete().eq("id", id);
+  const { error } = await supabase
+    .from("horarios_atencion")
+    .delete()
+    .eq("id", id);
   if (error) return { error: error.message };
   return {};
 }

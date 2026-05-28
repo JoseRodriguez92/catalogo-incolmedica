@@ -217,6 +217,7 @@ export type Database = {
       instituciones_logos: {
         Row: {
           activo: boolean | null
+          categoria: Database["public"]["Enums"]["categoria_logo"]
           created_at: string | null
           id: string
           institucion_id: string
@@ -228,6 +229,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
+          categoria?: Database["public"]["Enums"]["categoria_logo"]
           created_at?: string | null
           id?: string
           institucion_id: string
@@ -239,6 +241,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
+          categoria?: Database["public"]["Enums"]["categoria_logo"]
           created_at?: string | null
           id?: string
           institucion_id?: string
@@ -971,6 +974,7 @@ export type Database = {
       }
     }
     Enums: {
+      categoria_logo: "principal" | "secundario" | "normal"
       tipo_documento:
         | "ficha_tecnica"
         | "manual_usuario"
@@ -1137,6 +1141,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      categoria_logo: ["principal", "secundario", "normal"],
       tipo_documento: [
         "ficha_tecnica",
         "manual_usuario",
