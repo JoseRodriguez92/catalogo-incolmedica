@@ -12,9 +12,35 @@ import {
   getProductos,
   getProductoImagenes,
   getProductoCategorias,
+  getProductoDocumentos,
+  syncProductoDocumentos,
   createProducto,
   updateProducto,
 } from "./actions";
+
+type TipoDoc = Database["public"]["Enums"]["tipo_documento"];
+
+type DocItem = {
+  tempId: string;
+  docId?: string;
+  nombre: string;
+  url: string;
+  tipo: TipoDoc;
+  mime_type: string;
+  tamano_bytes: number;
+  file?: File;
+};
+
+const TIPO_DOC_LABELS: Record<TipoDoc, string> = {
+  ficha_tecnica:  "Ficha técnica",
+  manual_usuario: "Manual de usuario",
+  certificado:    "Certificado",
+  brochure:       "Brochure",
+  catalogo:       "Catálogo",
+  imagen:         "Imagen",
+  video:          "Video",
+  otro:           "Otro",
+};
 
 type Product = Database["public"]["Tables"]["productos"]["Row"] & {
   marcas?: { nombre: string } | null;
@@ -56,13 +82,17 @@ export default function ProductosPage() {
   const [formData,       setFormData]       = useState<Partial<Product>>({});
   const [gallery,             setGallery]             = useState<GalleryItem[]>([]);
   const [selectedCategorias,  setSelectedCategorias]  = useState<string[]>([]);
+  const [docs,                setDocs]                = useState<DocItem[]>([]);
+  const [initialDocIds,       setInitialDocIds]       = useState<string[]>([]);
+  const [rightTab,            setRightTab]            = useState<"galeria" | "documentos">("galeria");
   const [uploading,      setUploading]      = useState(false);
   const [saving,         setSaving]         = useState(false);
   const [loadingMedia,   setLoadingMedia]   = useState(false);
 
-  const overlayRef  = useRef<HTMLDivElement>(null);
-  const modalRef    = useRef<HTMLDivElement>(null);
+  const overlayRef   = useRef<HTMLDivElement>(null);
+  const modalRef     = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef  = useRef<HTMLInputElement>(null);
 
   // Filtros
   const [filterSearch,    setFilterSearch]    = useState("");
@@ -121,6 +151,9 @@ export default function ProductosPage() {
     setFormData(emptyForm);
     setGallery([]);
     setSelectedCategorias([]);
+    setDocs([]);
+    setInitialDocIds([]);
+    setRightTab("galeria");
     setIsModalOpen(true);
   };
 
@@ -129,13 +162,17 @@ export default function ProductosPage() {
     setFormData(product);
     setGallery([]);
     setSelectedCategorias([]);
+    setDocs([]);
+    setInitialDocIds([]);
+    setRightTab("galeria");
     setLoadingMedia(true);
     setIsModalOpen(true);
 
-    // Cargar imágenes y categorías vía server actions (bypassan RLS)
-    const [{ data: imgs }, { categoriaIds }] = await Promise.all([
+    // Cargar imágenes, categorías y documentos vía server actions (bypassan RLS)
+    const [{ data: imgs }, { categoriaIds }, { data: existingDocs }] = await Promise.all([
       getProductoImagenes(product.id),
       getProductoCategorias(product.id),
+      getProductoDocumentos(product.id),
     ]);
 
     // Si no hay registros en productos_imagenes pero el producto tiene
@@ -148,6 +185,18 @@ export default function ProductosPage() {
 
     setGallery(galleryItems);
     setSelectedCategorias(categoriaIds);
+
+    const docItems: DocItem[] = existingDocs.map((d) => ({
+      tempId: d.id,
+      docId:  d.id,
+      nombre: d.nombre,
+      url:    d.url,
+      tipo:   (d.tipo ?? "otro") as TipoDoc,
+      mime_type:    d.mime_type ?? "",
+      tamano_bytes: d.tamano_bytes ?? 0,
+    }));
+    setDocs(docItems);
+    setInitialDocIds(docItems.map((d) => d.docId!));
     setLoadingMedia(false);
   };
 
@@ -156,7 +205,7 @@ export default function ProductosPage() {
     gsap.to(modalRef.current,  { opacity: 0, y: -20, scale: 0.95, duration: 0.25, ease: "power2.in" });
     gsap.to(overlayRef.current, {
       opacity: 0, duration: 0.25, ease: "power2.in",
-      onComplete: () => { setIsModalOpen(false); setEditingProduct(null); setFormData({}); setGallery([]); setSelectedCategorias([]); },
+      onComplete: () => { setIsModalOpen(false); setEditingProduct(null); setFormData({}); setGallery([]); setSelectedCategorias([]); setDocs([]); setInitialDocIds([]); setRightTab("galeria"); },
     });
   };
 
@@ -215,6 +264,7 @@ export default function ProductosPage() {
     const imagenesPayload = uploadedItems.map((item, idx) => ({ url: item.url, orden: idx }));
 
     // 3. Guardar producto vía server action (bypassan RLS)
+    let savedId: string | undefined;
     if (editingProduct) {
       await updateProducto(
         editingProduct.id,
@@ -223,11 +273,33 @@ export default function ProductosPage() {
         selectedCategorias,
       );
     } else {
-      await createProducto(
+      const result = await createProducto(
         { ...formData, imagen_principal: principalUrl } as any,
         imagenesPayload,
         selectedCategorias,
       );
+      savedId = result.id;
+    }
+
+    // 4. Sincronizar documentos (upload nuevos, eliminar removidos)
+    const productoId = editingProduct?.id ?? savedId;
+    if (productoId) {
+      const toRemove = initialDocIds.filter((id) => !docs.some((d) => d.docId === id));
+      const toAdd: { nombre: string; url: string; tipo: TipoDoc; mime_type: string; tamano_bytes: number }[] = [];
+
+      for (const doc of docs.filter((d) => d.file)) {
+        const ext  = doc.file!.name.split(".").pop();
+        const path = `${INST_ID}/docs/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { data: uploaded, error } = await supabase.storage
+          .from("productos")
+          .upload(path, doc.file!, { contentType: doc.mime_type, upsert: false });
+        if (error || !uploaded) continue;
+        const { data: { publicUrl } } = supabase.storage.from("productos").getPublicUrl(uploaded.path);
+        URL.revokeObjectURL(doc.url);
+        toAdd.push({ nombre: doc.nombre, url: publicUrl, tipo: doc.tipo, mime_type: doc.mime_type, tamano_bytes: doc.tamano_bytes });
+      }
+
+      await syncProductoDocumentos(productoId, toRemove, toAdd);
     }
 
     setSaving(false);
@@ -598,84 +670,174 @@ export default function ProductosPage() {
                 </div>
               </div>
 
-              {/* ── Columna derecha: galería ── */}
-              <div className="lg:col-span-2 p-6 flex flex-col gap-4">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Galería</p>
-                <p className="text-xs text-gray-400 -mt-2">La primera imagen será la principal.</p>
+              {/* ── Columna derecha: tabs ── */}
+              <div className="lg:col-span-2 flex flex-col">
 
-                {/* Drop zone */}
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 hover:border-incolmedica-primary rounded-2xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-incolmedica-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <p className="text-xs font-semibold text-gray-500 group-hover:text-incolmedica-primary text-center transition-colors">
-                    Arrastra archivos aquí<br />
-                    <span className="font-normal text-gray-400">o haz clic para seleccionar</span>
-                  </p>
-                  <p className="text-xs text-gray-300">Imágenes y videos</p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleFilesSelected(e.target.files)}
-                  />
+                {/* Tab switcher */}
+                <div className="flex border-b border-gray-100 px-4 pt-4 gap-1">
+                  {(["galeria", "documentos"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setRightTab(tab)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors capitalize flex items-center gap-1.5 ${
+                        rightTab === tab
+                          ? "bg-incolmedica-primary/10 text-incolmedica-primary border-b-2 border-incolmedica-primary -mb-px"
+                          : "text-gray-400 hover:text-gray-600"
+                      }`}
+                    >
+                      {tab === "galeria" ? (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      )}
+                      {tab === "galeria" ? "Galería" : "Documentos"}
+                      {tab === "galeria" && gallery.length > 0 && (
+                        <span className="bg-incolmedica-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{gallery.length}</span>
+                      )}
+                      {tab === "documentos" && docs.length > 0 && (
+                        <span className="bg-incolmedica-primary text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{docs.length}</span>
+                      )}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Grid galería */}
-                {gallery.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {gallery.map((item, idx) => (
-                      <div key={item.tempId} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
-                        {item.isVideo ? (
-                          <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gray-900">
-                            <svg className="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                            <span className="text-xs text-white/40">video</span>
+                {/* ── Tab: Galería ── */}
+                {rightTab === "galeria" && (
+                  <div className="p-4 flex flex-col gap-4 flex-1">
+                    <p className="text-xs text-gray-400">La primera imagen será la principal.</p>
+
+                    <div onDrop={handleDrop} onDragOver={(e) => e.preventDefault()} onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-gray-200 hover:border-incolmedica-primary rounded-2xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 group-hover:bg-blue-50 flex items-center justify-center transition-colors">
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-incolmedica-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-500 group-hover:text-incolmedica-primary text-center transition-colors">
+                        Arrastra archivos aquí<br /><span className="font-normal text-gray-400">o haz clic para seleccionar</span>
+                      </p>
+                      <p className="text-xs text-gray-300">Imágenes y videos</p>
+                      <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
+                    </div>
+
+                    {gallery.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {gallery.map((item, idx) => (
+                          <div key={item.tempId} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+                            {item.isVideo ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gray-900">
+                                <svg className="w-6 h-6 text-white/60" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                <span className="text-xs text-white/40">video</span>
+                              </div>
+                            ) : (
+                              <img src={item.url} alt="" className="w-full h-full object-cover" />
+                            )}
+                            {idx === 0 && <span className="absolute top-1 left-1 bg-incolmedica-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-tight">Principal</span>}
+                            <button onClick={() => removeGalleryItem(item.tempId)}
+                              className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center">
+                        {loadingMedia ? (
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="w-5 h-5 border-2 border-gray-200 border-t-incolmedica-primary rounded-full animate-spin" />
+                            <p className="text-xs text-gray-300">Cargando archivos…</p>
                           </div>
                         ) : (
-                          <img src={item.url} alt="" className="w-full h-full object-cover" />
+                          <p className="text-xs text-gray-300">Sin archivos añadidos</p>
                         )}
-
-                        {/* Badge principal */}
-                        {idx === 0 && (
-                          <span className="absolute top-1 left-1 bg-incolmedica-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md leading-tight">
-                            Principal
-                          </span>
-                        )}
-
-                        {/* Botón eliminar */}
-                        <button
-                          onClick={() => removeGalleryItem(item.tempId)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
 
-                {gallery.length === 0 && (
-                  <div className="flex-1 flex items-center justify-center">
+                {/* ── Tab: Documentos ── */}
+                {rightTab === "documentos" && (
+                  <div className="p-4 flex flex-col gap-3 flex-1">
+                    <p className="text-xs text-gray-400">Fichas técnicas, manuales, certificados…</p>
+
+                    {/* Zona agregar doc */}
+                    <button type="button" onClick={() => docInputRef.current?.click()}
+                      className="border-2 border-dashed border-gray-200 hover:border-incolmedica-primary rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-colors group w-full text-left">
+                      <div className="w-9 h-9 rounded-xl bg-gray-100 group-hover:bg-blue-50 flex items-center justify-center shrink-0 transition-colors">
+                        <svg className="w-4.5 h-4.5 text-gray-400 group-hover:text-incolmedica-primary transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 group-hover:text-incolmedica-primary transition-colors">Agregar documento</p>
+                        <p className="text-xs text-gray-300">PDF, Word, Excel…</p>
+                      </div>
+                      <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" multiple className="hidden"
+                        onChange={(e) => {
+                          if (!e.target.files) return;
+                          const newDocs: DocItem[] = Array.from(e.target.files).map((file) => ({
+                            tempId: `${Date.now()}_${Math.random()}`,
+                            nombre: file.name.replace(/\.[^.]+$/, ""),
+                            url: URL.createObjectURL(file),
+                            tipo: "ficha_tecnica" as TipoDoc,
+                            mime_type: file.type,
+                            tamano_bytes: file.size,
+                            file,
+                          }));
+                          setDocs((prev) => [...prev, ...newDocs]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </button>
+
+                    {/* Lista documentos */}
                     {loadingMedia ? (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex items-center justify-center py-8">
                         <span className="w-5 h-5 border-2 border-gray-200 border-t-incolmedica-primary rounded-full animate-spin" />
-                        <p className="text-xs text-gray-300">Cargando archivos…</p>
+                      </div>
+                    ) : docs.length === 0 ? (
+                      <div className="flex-1 flex items-center justify-center py-8">
+                        <p className="text-xs text-gray-300">Sin documentos adjuntos</p>
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-300 text-center">Sin archivos añadidos</p>
+                      <div className="space-y-2 overflow-y-auto max-h-72">
+                        {docs.map((doc) => (
+                          <div key={doc.tempId} className="flex items-center gap-2 p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white transition-colors group">
+                            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+                              <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM6 20V4h5v7h7v9H6z"/>
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={doc.nombre}
+                                onChange={(e) => setDocs((prev) => prev.map((d) => d.tempId === doc.tempId ? { ...d, nombre: e.target.value } : d))}
+                                className="w-full text-xs font-semibold text-gray-700 bg-transparent focus:outline-none focus:bg-white focus:px-1 rounded"
+                              />
+                              <select
+                                value={doc.tipo}
+                                onChange={(e) => setDocs((prev) => prev.map((d) => d.tempId === doc.tempId ? { ...d, tipo: e.target.value as TipoDoc } : d))}
+                                className="text-[10px] text-gray-400 bg-transparent focus:outline-none mt-0.5 cursor-pointer"
+                              >
+                                {(Object.entries(TIPO_DOC_LABELS) as [TipoDoc, string][]).map(([val, label]) => (
+                                  <option key={val} value={val}>{label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                if (doc.file) URL.revokeObjectURL(doc.url);
+                                setDocs((prev) => prev.filter((d) => d.tempId !== doc.tempId));
+                              }}
+                              className="w-6 h-6 rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}
