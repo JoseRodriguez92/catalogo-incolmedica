@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { submitFormulario } from "@/app/consulta/actions";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
@@ -23,20 +23,13 @@ export default function ContactForm() {
       acepta_politica_privacidad: formData.get("acepta_politica") === "on",
     };
 
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("instituciones_registros_formulario")
-        .insert([data]);
-
-      if (error) throw error;
-      setState("success");
-    } catch (error) {
+    const { error } = await submitFormulario(data);
+    if (error) {
       console.error("Error al enviar formulario:", error);
       setState("error");
-      setErrorMessage(
-        "Hubo un error al enviar tu solicitud. Por favor intenta nuevamente.",
-      );
+      setErrorMessage("Hubo un error al enviar tu solicitud. Por favor intenta nuevamente.");
+    } else {
+      setState("success");
     }
   }
 
