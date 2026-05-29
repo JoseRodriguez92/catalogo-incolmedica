@@ -1,5 +1,11 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 
-export default function DashboardHome() {
-  redirect("/dashboard/productos");
+export default async function DashboardHome() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) redirect("/login");
+
+  redirect("/dashboard/companias");
 }

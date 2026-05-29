@@ -7,6 +7,26 @@ type Logo = Database["public"]["Tables"]["instituciones_logos"]["Row"];
 type TipoLogo = Database["public"]["Enums"]["tipo_logo"];
 type Horario = Database["public"]["Tables"]["horarios_atencion"]["Row"];
 
+// ── Selectors reutilizables ───────────────────────────────────────────────────
+
+/** Logo para fondos OSCUROS: prioriza version_clara */
+export const selectLogoOscuro = (state: { logos: Logo[] }) =>
+  state.logos.find((l) => l.tipo === "version_clara" && l.categoria === "principal")?.url ??
+  state.logos.find((l) => l.tipo === "version_clara")?.url ??
+  state.logos.find((l) => l.tipo === "logotipo" && l.categoria === "principal")?.url ??
+  state.logos.find((l) => l.categoria === "principal")?.url ??
+  state.logos[0]?.url ??
+  null;
+
+/** Logo para fondos CLAROS: prioriza logotipo principal */
+export const selectLogoClaro = (state: { logos: Logo[] }) =>
+  state.logos.find((l) => l.tipo === "logotipo" && l.categoria === "principal")?.url ??
+  state.logos.find((l) => l.categoria === "principal")?.url ??
+  state.logos[0]?.url ??
+  null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type HorarioForm = {
   dia_semana_inicio: number;
   dia_semana_fin: number | null;

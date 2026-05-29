@@ -1,6 +1,21 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useInstitucionStore, selectLogoOscuro } from "@/lib/store/instituciones-store";
+import { getLogos } from "@/app/dashboard/companias/actions";
+import { INSTITUCION_ID } from "@/app/dashboard/companias/constants";
 
 export default function Footer() {
+  const { logos, setLogos } = useInstitucionStore();
+  const logoUrl = useInstitucionStore(selectLogoOscuro);
+
+  useEffect(() => {
+    if (logos.length > 0) return;
+    getLogos(INSTITUCION_ID).then(({ data }) => {
+      if (data) setLogos(data);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const CATEGORIES = [
     "Equipos Médicos",
     "Diagnóstico",
@@ -18,7 +33,7 @@ export default function Footer() {
             className="inline-block mb-3 transition-transform hover:scale-105 duration-300"
           >
             <img
-              src="https://imcolmedica.com.co/wp-content/uploads/2024/10/cropped-VAR-BLANCO-ISOLOGO-IMCOL-700X200-555x159.png"
+              src={logoUrl ?? "https://imcolmedica.com.co/wp-content/uploads/2024/10/cropped-VAR-BLANCO-ISOLOGO-IMCOL-700X200-555x159.png"}
               alt="INCOLMEDICA"
               className="h-12 w-auto object-contain drop-shadow-sm"
             />

@@ -2,7 +2,7 @@ import type { Database } from "@/types/database.types";
 
 type TipoLogo = Database["public"]["Enums"]["tipo_logo"];
 
-export const INSTITUCION_ID = "d90e53d2-9383-45f2-a46a-992e407a1772";
+export const INSTITUCION_ID = process.env.NEXT_PUBLIC_INSTITUCION_ID!;
 export const MAP_STYLE =
   "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 

@@ -1,5 +1,9 @@
 "use client";
 
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 import type { Database } from "@/types/database.types";
 import { useInstitucionStore } from "@/lib/store/instituciones-store";
 import { TIPO_META, CATEGORIA_META } from "../constants";
@@ -75,10 +79,10 @@ export function LogosSection({
               {editingLogo ? "Editar logo" : "Subir nuevo logo"}
             </span>
           </div>
-          <div className="p-5 flex gap-5">
+          <div className="p-5 flex flex-col sm:flex-row gap-5">
             {/* Zona de archivo */}
-            <div className="flex-shrink-0 w-36">
-              <label className="flex flex-col items-center justify-center w-full h-36 rounded-2xl border-2 border-dashed border-incolmedica-primary/30 bg-white cursor-pointer hover:border-incolmedica-primary/60 hover:bg-blue-50/50 transition-all overflow-hidden group/drop">
+            <div className="shrink-0 w-full sm:w-36">
+              <label className="flex flex-col items-center justify-center w-full h-48 sm:h-36 rounded-2xl border-2 border-dashed border-incolmedica-primary/30 bg-white cursor-pointer hover:border-incolmedica-primary/60 hover:bg-blue-50/50 transition-all overflow-hidden group/drop">
                 {uploadPreview ? (
                   <img src={uploadPreview} alt="preview" className="h-full w-full object-contain p-2" />
                 ) : (
@@ -193,11 +197,11 @@ export function LogosSection({
         </div>
       )}
 
-      {/* Grid de logos */}
+      {/* Slider de logos */}
       {logosLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-44" />
+        <div className="flex gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl bg-gray-100 animate-pulse h-52 w-48 shrink-0" />
           ))}
         </div>
       ) : logos.length === 0 ? (
@@ -208,89 +212,90 @@ export function LogosSection({
             </svg>
           </div>
           <p className="text-sm font-semibold text-gray-600">Sin logos registrados</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Usa el botón "Subir logo" para agregar el primero.
-          </p>
+          <p className="text-xs text-gray-400 mt-1">Usa "Subir logo" para agregar el primero.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <Swiper
+          modules={[Pagination]}
+          spaceBetween={16}
+          slidesPerView={1.3}
+          breakpoints={{
+            480:  { slidesPerView: 2.2 },
+            768:  { slidesPerView: 3.2 },
+            1024: { slidesPerView: 4.2 },
+          }}
+          pagination={{ clickable: true }}
+          className="pb-10!"
+        >
           {logos.map((logo) => {
             const meta = TIPO_META[logo.tipo];
             const catMeta = logo.categoria
               ? CATEGORIA_META[logo.categoria as "principal" | "secundario" | "normal"]
               : null;
             return (
-              <div
-                key={logo.id}
-                className="group relative rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div
-                  className={`flex items-center justify-center h-40 p-5 ${meta.darkBg ? "bg-gray-900" : ""}`}
-                  style={
-                    !meta.darkBg
-                      ? {
-                          backgroundImage:
-                            "repeating-conic-gradient(#f3f4f6 0% 25%, #ffffff 0% 50%)",
-                          backgroundSize: "16px 16px",
-                        }
-                      : undefined
-                  }
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logo.url}
-                    alt={logo.nombre || meta.label}
-                    className="max-h-full max-w-full object-contain drop-shadow-sm"
-                  />
-                </div>
-
-                <div className="px-3 py-2.5 bg-white border-t border-gray-50">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${meta.dot}`} />
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.badge}`}>
-                      {meta.label}
-                    </span>
+              <SwiperSlide key={logo.id}>
+                <div className="group relative rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-lg transition-all h-full">
+                  {/* Preview */}
+                  <div
+                    className={`flex items-center justify-center h-44 p-6 ${meta.darkBg ? "bg-gray-900" : ""}`}
+                    style={
+                      !meta.darkBg
+                        ? { backgroundImage: "repeating-conic-gradient(#f3f4f6 0% 25%, #ffffff 0% 50%)", backgroundSize: "16px 16px" }
+                        : undefined
+                    }
+                  >
+                    <img
+                      src={logo.url}
+                      alt={logo.nombre || meta.label}
+                      className="max-h-full max-w-full object-contain drop-shadow-sm"
+                    />
                   </div>
-                  {catMeta && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${catMeta.badge}`}>
-                        {catMeta.label}
-                      </span>
+
+                  {/* Info */}
+                  <div className="px-3 py-3 bg-white border-t border-gray-50 space-y-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${meta.dot}`} />
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${meta.badge}`}>{meta.label}</span>
+                      {catMeta && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${catMeta.badge}`}>{catMeta.label}</span>
+                      )}
                     </div>
-                  )}
-                  {logo.nombre && (
-                    <p className="text-xs text-gray-400 mt-1 truncate">{logo.nombre}</p>
-                  )}
+                    {logo.nombre && (
+                      <p className="text-xs text-gray-400 truncate">{logo.nombre}</p>
+                    )}
+                  </div>
+
+                  {/* Acciones — siempre visibles en mobile, hover en desktop */}
+                  <div className="absolute top-2 right-2 flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onEditLogo(logo)}
+                      className="w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm border border-gray-200 flex items-center justify-center hover:bg-blue-50 hover:border-blue-200 text-gray-400 hover:text-incolmedica-primary shadow-sm transition-colors"
+                      title="Editar"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => onDeleteLogo(logo)}
+                      disabled={deletingId === logo.id}
+                      className="w-7 h-7 rounded-full bg-white/95 backdrop-blur-sm border border-gray-200 flex items-center justify-center hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 shadow-sm transition-colors disabled:opacity-50"
+                      title="Eliminar"
+                    >
+                      {deletingId === logo.id ? (
+                        <Spinner className="w-3.5 h-3.5" />
+                      ) : (
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  onClick={() => onEditLogo(logo)}
-                  className="absolute top-2 right-11 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-50 hover:border-blue-200 text-gray-400 hover:text-incolmedica-primary shadow-sm scale-90 group-hover:scale-100"
-                  title="Editar logo"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                </button>
-
-                <button
-                  onClick={() => onDeleteLogo(logo)}
-                  disabled={deletingId === logo.id}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 backdrop-blur-sm border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:border-red-200 text-gray-400 hover:text-red-500 shadow-sm scale-90 group-hover:scale-100"
-                  title="Eliminar logo"
-                >
-                  {deletingId === logo.id ? (
-                    <Spinner className="w-3.5 h-3.5" />
-                  ) : (
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              </SwiperSlide>
             );
           })}
-        </div>
+        </Swiper>
       )}
     </div>
   );

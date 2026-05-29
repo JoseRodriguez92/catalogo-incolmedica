@@ -15,6 +15,14 @@
   --color-incolmedica-dark: #0a4f9e;
 }
 
+@utility bg-brand-gradient {
+  background: linear-gradient(135deg, #1887e5 0%, #0e9fdd 45%, #005cb9 100%);
+}
+
+@utility bg-brand-sidebar {
+  background: linear-gradient(180deg, #083d7a 0%, #0a4f9e 40%, #005cb9 100%);
+}
+
 /*! normalize.css v8.0.1 | MIT License | github.com/necolas/normalize.css */
 
 /* Document

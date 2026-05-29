@@ -11,8 +11,9 @@ export default function PublicLayout({
 }) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
+  const isLogin = pathname?.startsWith("/login");
 
-  if (isDashboard) {
+  if (isDashboard || isLogin) {
     return <>{children}</>;
   }
 

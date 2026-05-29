@@ -21,6 +21,7 @@ export type Database = {
           descripcion: string | null
           icono: string | null
           id: string
+          institucion_id: string | null
           nombre: string
           orden: number | null
           parent_id: string | null
@@ -32,6 +33,7 @@ export type Database = {
           descripcion?: string | null
           icono?: string | null
           id?: string
+          institucion_id?: string | null
           nombre: string
           orden?: number | null
           parent_id?: string | null
@@ -43,12 +45,48 @@ export type Database = {
           descripcion?: string | null
           icono?: string | null
           id?: string
+          institucion_id?: string | null
           nombre?: string
           orden?: number | null
           parent_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "categorias_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categorias_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones_con_horarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categorias_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones_con_usuarios"
+            referencedColumns: ["institucion_id"]
+          },
+          {
+            foreignKeyName: "categorias_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "registros_con_institucion"
+            referencedColumns: ["institucion_id"]
+          },
+          {
+            foreignKeyName: "categorias_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios_con_instituciones"
+            referencedColumns: ["institucion_id"]
+          },
           {
             foreignKeyName: "categorias_parent_id_fkey"
             columns: ["parent_id"]
@@ -514,6 +552,7 @@ export type Database = {
           created_at: string | null
           descripcion: string | null
           id: string
+          institucion_id: string | null
           logo_url: string | null
           nombre: string
           sitio_web: string | null
@@ -524,6 +563,7 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           id?: string
+          institucion_id?: string | null
           logo_url?: string | null
           nombre: string
           sitio_web?: string | null
@@ -534,12 +574,49 @@ export type Database = {
           created_at?: string | null
           descripcion?: string | null
           id?: string
+          institucion_id?: string | null
           logo_url?: string | null
           nombre?: string
           sitio_web?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "marcas_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marcas_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones_con_horarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marcas_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "instituciones_con_usuarios"
+            referencedColumns: ["institucion_id"]
+          },
+          {
+            foreignKeyName: "marcas_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "registros_con_institucion"
+            referencedColumns: ["institucion_id"]
+          },
+          {
+            foreignKeyName: "marcas_institucion_id_fkey"
+            columns: ["institucion_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios_con_instituciones"
+            referencedColumns: ["institucion_id"]
+          },
+        ]
       }
       productos: {
         Row: {
@@ -741,6 +818,45 @@ export type Database = {
           },
           {
             foreignKeyName: "productos_documentos_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos_completos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      productos_imagenes: {
+        Row: {
+          created_at: string | null
+          id: string
+          orden: number | null
+          producto_id: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          orden?: number | null
+          producto_id?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          orden?: number | null
+          producto_id?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_imagenes_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_imagenes_producto_id_fkey"
             columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos_completos"

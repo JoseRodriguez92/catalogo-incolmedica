@@ -3,10 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  useInstitucionStore,
+  selectLogoOscuro,
+} from "@/lib/store/instituciones-store";
 
 const NAV = [
   {
-    label: "Catalog",
+    href: "/dashboard/companias",
+    label: "Compañía",
     icon: (
       <svg
         className="w-5 h-5"
@@ -18,31 +23,7 @@ const NAV = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-        />
-      </svg>
-    ),
-    subItems: [
-      { href: "/dashboard/productos", label: "Producto" },
-      { href: "/dashboard/categorias", label: "Categoría" },
-      { href: "/dashboard/marcas", label: "Marca" },
-    ],
-  },
-  {
-    href: "/dashboard/informes",
-    label: "Informes",
-    icon: (
-      <svg
-        className="w-5 h-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          d="M3 7v4a1 1 0 001 1h3v9a1 1 0 001 1h6a1 1 0 001-1v-9h3a1 1 0 001-1V7a1 1 0 00-1-1H4a1 1 0 00-1 1zm2 0h14"
         />
       </svg>
     ),
@@ -67,8 +48,7 @@ const NAV = [
     ),
   },
   {
-    href: "/dashboard/companias",
-    label: "Compañía",
+    label: "Catálogo",
     icon: (
       <svg
         className="w-5 h-5"
@@ -80,7 +60,31 @@ const NAV = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M3 7v4a1 1 0 001 1h3v9a1 1 0 001 1h6a1 1 0 001-1v-9h3a1 1 0 001-1V7a1 1 0 00-1-1H4a1 1 0 00-1 1zm2 0h14"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+        />
+      </svg>
+    ),
+    subItems: [
+      { href: "/dashboard/productos", label: "Producto" },
+      { href: "/dashboard/categorias", label: "Categoría" },
+      { href: "/dashboard/marcas", label: "Marca" },
+    ],
+  },
+  {
+    href: "/dashboard/informes",
+    label: "Formulario",
+    icon: (
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
     ),
@@ -95,6 +99,7 @@ export default function DashboardLayout({
   const [open, setOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(true);
   const pathname = usePathname();
+  const logoUrl = useInstitucionStore(selectLogoOscuro);
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -109,18 +114,24 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside
         className={`fixed top-0 left-0 h-screen w-64 z-40 flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:z-auto ${open ? "translate-x-0" : "-translate-x-full"}`}
-        style={{
-          background: "linear-gradient(180deg, #0a4f9e 0%, #005cb9 100%)",
-        }}
+        style={{ background: "linear-gradient(180deg, #083d7a 0%, #0a4f9e 40%, #005cb9 100%)" }}
       >
         {/* Logo */}
         <div className="px-6 py-6 border-b border-incolmedica-cyan/30">
-          <span className="text-xl font-black text-white tracking-tight">
-            INCOLMEDICA
-          </span>
-          <span className="block text-xs text-incolmedica-cyan uppercase tracking-widest mt-0.5">
-            Panel Admin
-          </span>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="w-[95%] object-contain"
+              style={{
+                filter: "drop-shadow(0 0px 20px rgba(255,255,255,1))",
+              }}
+            />
+          ) : (
+            <span className="text-xl font-black text-white tracking-tight">
+              INCOLMEDICA
+            </span>
+          )}
         </div>
 
         {/* Nav */}
@@ -202,7 +213,7 @@ export default function DashboardLayout({
               >
                 {item.icon}
                 {item.label}
-                {item.label === "Informes" && (
+                {item.label === "Formulario" && (
                   <span className="ml-auto bg-yellow-400 text-incolmedica-dark text-xs font-black px-2 py-0.5 rounded-full">
                     3
                   </span>
@@ -252,13 +263,13 @@ export default function DashboardLayout({
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar mobile */}
-        <header className="lg:hidden bg-white border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+        <header className="lg:hidden bg-brand-gradient px-4 py-3 flex items-center gap-3 sticky top-0 z-20 shadow-md">
           <button
             onClick={() => setOpen(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/20 transition-colors"
           >
             <svg
-              className="w-5 h-5 text-gray-600"
+              className="w-5 h-5 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -271,12 +282,16 @@ export default function DashboardLayout({
               />
             </svg>
           </button>
-          <span className="font-black text-incolmedica-primary">
-            INCOLMEDICA
-          </span>
-          <span className="ml-auto text-xs text-gray-400 uppercase tracking-wide">
-            Admin
-          </span>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="h-12 object-contain ml-auto"
+              style={{ filter: "drop-shadow(0 0 10px rgba(255,255,255,0.4))" }}
+            />
+          ) : (
+            <span className="font-black text-white">INCOLMEDICA</span>
+          )}
         </header>
 
         <main className="flex-1 p-5 lg:p-8 overflow-auto max-h-[100dvh]">

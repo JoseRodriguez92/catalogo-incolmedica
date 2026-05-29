@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import CompaniaClient from "./CompaniaClient";
 
-const INSTITUCION_ID = "d90e53d2-9383-45f2-a46a-992e407a1772";
+const INSTITUCION_ID = process.env.NEXT_PUBLIC_INSTITUCION_ID!;
 
 export default async function CompaniasPage() {
   const supabase = await createClient();

@@ -1,18 +1,54 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import Navbar from "../components/Navbar";
 import ContactForm from "../components/ContactForm";
+import { createClient } from "@/lib/supabase/client";
+import type { Database } from "@/types/database.types";
+
+type Institucion = Database["public"]["Tables"]["instituciones"]["Row"];
+type Horario = Database["public"]["Tables"]["horarios_atencion"]["Row"];
+
+const INSTITUCION_ID = process.env.NEXT_PUBLIC_INSTITUCION_ID!;
+
+const DIAS = ["Festivos", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+function formatHora(h: string) {
+  const [hh, mm] = h.split(":");
+  const hour = parseInt(hh);
+  return `${hour > 12 ? hour - 12 : hour || 12}:${mm} ${hour >= 12 ? "pm" : "am"}`;
+}
 
 export default function ConsultaPage() {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef    = useRef<HTMLDivElement>(null);
   const swoosh1Ref = useRef<SVGSVGElement>(null);
   const swoosh2Ref = useRef<SVGSVGElement>(null);
   const swoosh3Ref = useRef<SVGSVGElement>(null);
   const swoosh4Ref = useRef<SVGSVGElement>(null);
   const circle1Ref = useRef<HTMLDivElement>(null);
   const circle2Ref = useRef<HTMLDivElement>(null);
+
+  const [institucion, setInstitucion] = useState<Institucion | null>(null);
+  const [horarios, setHorarios]       = useState<Horario[]>([]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("instituciones")
+      .select("*")
+      .eq("id", INSTITUCION_ID)
+      .single()
+      .then(({ data }) => { if (data) setInstitucion(data); });
+
+    supabase
+      .from("horarios_atencion")
+      .select("*")
+      .eq("institucion_id", INSTITUCION_ID)
+      .eq("activo", true)
+      .order("dia_semana", { ascending: true })
+      .then(({ data }) => { if (data) setHorarios(data); });
+  }, []);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -285,69 +321,37 @@ export default function ConsultaPage() {
             <div className="space-y-4">
               {[
                 {
+                  show: !!institucion?.telefono,
                   icon: (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                      />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
                   ),
                   label: "Teléfono",
-                  value: "+57 (601) 123-4567",
+                  value: institucion?.telefono ?? "",
                 },
                 {
+                  show: !!institucion?.correo_contacto,
                   icon: (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                      />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   ),
                   label: "Correo",
-                  value: "ventas@incolmedica.com.co",
+                  value: institucion?.correo_contacto ?? "",
                 },
                 {
+                  show: !!institucion?.ubicacion,
                   icon: (
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   ),
                   label: "Ubicación",
-                  value: "Bogotá, Colombia",
+                  value: institucion?.ubicacion ?? "",
                 },
-              ].map((item) => (
+              ].filter((item) => item.show).map((item) => (
                 <div
                   key={item.label}
                   className="flex items-start gap-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
@@ -368,25 +372,98 @@ export default function ConsultaPage() {
             </div>
 
             {/* Horario */}
-            <div className="bg-incolmedica-primary rounded-2xl p-5 text-white">
-              <h3 className="font-bold text-sm uppercase tracking-wide text-incolmedica-cyan mb-3">
-                Horario de atención
-              </h3>
-              <div className="space-y-1.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-blue-100">Lunes – Viernes</span>
-                  <span className="font-semibold">8:00 am – 6:00 pm</span>
+            {(() => {
+              type Grupo = { label: string; apertura: string; cierre: string; dias: number[]; esFestivo: boolean };
+              const grupos: Grupo[] = [];
+
+              // Separar festivos (dia_semana=0) del resto
+              const festivos = horarios.filter((h) => h.dia_semana === 0);
+              const normales  = horarios.filter((h) => h.dia_semana > 0);
+
+              // Agrupar días consecutivos con mismo horario
+              for (let i = 0; i < normales.length; ) {
+                const cur = normales[i];
+                let j = i + 1;
+                while (
+                  j < normales.length &&
+                  normales[j].dia_semana === normales[j - 1].dia_semana + 1 &&
+                  normales[j].hora_apertura === cur.hora_apertura &&
+                  normales[j].hora_cierre === cur.hora_cierre
+                ) j++;
+                const dias = normales.slice(i, j).map((h) => h.dia_semana);
+                const label =
+                  j - i === 1
+                    ? DIAS[cur.dia_semana]
+                    : `${DIAS[cur.dia_semana]} – ${DIAS[normales[j - 1].dia_semana]}`;
+                grupos.push({ label, apertura: formatHora(cur.hora_apertura), cierre: formatHora(cur.hora_cierre), dias, esFestivo: false });
+                i = j;
+              }
+
+              // Agregar festivos al final si existen
+              festivos.forEach((f) => {
+                grupos.push({ label: "Festivos", apertura: formatHora(f.hora_apertura), cierre: formatHora(f.hora_cierre), dias: [0], esFestivo: true });
+              });
+
+              // 0=Dom JS → 7 en nuestra escala; 1-6 igual
+              const todayDia = new Date().getDay() === 0 ? 7 : new Date().getDay();
+              const todayGrupo = grupos.find((g) => g.dias.includes(todayDia));
+
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-incolmedica-primary/10 flex items-center justify-center shrink-0">
+                        <svg className="w-4 h-4 text-incolmedica-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-black text-gray-800">Horario de atención</p>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${todayGrupo ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${todayGrupo ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+                      {todayGrupo ? "Abierto hoy" : "Cerrado hoy"}
+                    </span>
+                  </div>
+
+                  {/* Filas */}
+                  <div className="divide-y divide-gray-50">
+                    {horarios.length === 0 ? (
+                      <div className="px-5 py-4 text-gray-400 text-xs">Cargando horarios…</div>
+                    ) : (
+                      grupos.map((g) => {
+                        const isToday = g.dias.includes(todayDia);
+                        return (
+                          <div
+                            key={g.label}
+                            className={`flex items-center justify-between px-5 py-3 ${isToday ? "bg-incolmedica-primary/5" : ""}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isToday && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />}
+                              <span className={`text-sm ${isToday ? "font-bold text-incolmedica-dark" : g.esFestivo ? "text-orange-600 font-semibold" : "text-gray-600"}`}>
+                                {g.label}
+                              </span>
+                            </div>
+                            <span className={`text-sm font-semibold tabular-nums ${isToday ? "text-incolmedica-primary" : g.esFestivo ? "text-orange-500" : "text-gray-700"}`}>
+                              {g.apertura} – {g.cierre}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Footer con hoy */}
+                  {todayGrupo && (
+                    <div className="px-5 py-3 bg-incolmedica-primary/5 border-t border-incolmedica-primary/10">
+                      <p className="text-xs text-incolmedica-primary font-semibold">
+                        Hoy atendemos de {todayGrupo.apertura} a {todayGrupo.cierre}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-100">Sábados</span>
-                  <span className="font-semibold">9:00 am – 1:00 pm</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-blue-100">Domingos</span>
-                  <span className="text-incolmedica-cyan">Cerrado</span>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* Formulario */}
